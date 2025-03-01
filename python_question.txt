@@ -1,0 +1,582 @@
+================================================================================
+Top 50 Python Questions for a Python Developer (4 Years Experience)
+================================================================================
+
+This document provides 50 Python-related questions with detailed answers, tailored for a developer 
+with 4+ years of experience, such as a Django backend developer preparing for an interview (e.g., 
+Infosys). The questions cover core Python, advanced concepts, Django-specific usage, performance 
+optimization, and practical application scenarios.
+
+--------------------------------------------------------------------------------
+Core Python Concepts
+--------------------------------------------------------------------------------
+
+1. What is the difference between `__str__` and `__repr__` in Python?
+   Answer: `__str__` provides a readable string representation for end-users (informal), while 
+   `__repr__` provides an unambiguous representation for debugging/developers (formal), ideally 
+   recreating the object. If `__str__` is undefined, `__repr__` is used.
+   Details: Example: `class Point: def __str__(self): return f"({self.x}, {self.y})"; 
+   def __repr__(self): return f"Point({self.x}, {self.y})"`. Output: `str(Point(1, 2))` -> "(1, 2)", 
+   `repr(Point(1, 2))` -> "Point(1, 2)".
+
+2. How does Python's Global Interpreter Lock (GIL) affect multi-threading?
+   Answer: The GIL ensures only one thread executes Python bytecode at a time, limiting true 
+   parallelism in CPython for CPU-bound tasks. Multi-threading benefits I/O-bound tasks.
+   Details: Use `multiprocessing` for CPU-bound tasks to bypass GIL, creating separate processes.
+
+3. What are Python decorators, and how do you create one?
+   Answer: Decorators are functions that modify or enhance other functions/classes, applied with `@`.
+   Example:
+      ```python
+      def log(func):
+          def wrapper(*args, **kwargs):
+              print(f"Calling {func.__name__}")
+              return func(*args, **kwargs)
+          return wrapper
+      @log
+      def add(a, b):
+          return a + b
+      ```
+   Details: Useful for logging, authentication, or memoization in Django views.
+
+4. Explain the difference between `deepcopy` and `copy` in Python.
+   Answer: `copy.copy()` creates a shallow copy (new object, same references to nested objects), 
+   while `copy.deepcopy()` creates a fully independent copy (recursively copies nested objects).
+   Details: Shallow copy: `b = copy.copy(a)`; modifying `b[0][0]` affects `a`. Deep copy: 
+   `b = copy.deepcopy(a)`; changes to `b` don’t affect `a`.
+
+5. What are Python’s `*args` and `**kwargs`, and when would you use them?
+   Answer: `*args` collects extra positional arguments as a tuple, `**kwargs` collects extra keyword 
+   arguments as a dict. Used for flexible function signatures.
+   Details: Example: `def func(a, *args, **kwargs): print(a, args, kwargs)`; 
+   `func(1, 2, 3, x=4)` -> `1 (2, 3) {'x': 4}`.
+
+--------------------------------------------------------------------------------
+Advanced Python Features
+--------------------------------------------------------------------------------
+
+6. What are context managers, and how do you implement one?
+   Answer: Context managers manage resources (e.g., files) using `with`. Implement with `__enter__` 
+   and `__exit__` or `@contextmanager`.
+      ```python
+      from contextlib import contextmanager
+      @contextmanager
+      def timer():
+          start = time.time()
+          yield
+          print(f"Elapsed: {time.time() - start}")
+      with timer():
+          time.sleep(1)
+      ```
+   Details: Ensures cleanup, common in DB connections or file handling.
+
+7. How do generators work in Python, and why are they memory-efficient?
+   Answer: Generators yield values one at a time using `yield`, pausing execution between calls, 
+   unlike lists which store all values in memory.
+      ```python
+      def fibonacci(n):
+          a, b = 0, 1
+          for _ in range(n):
+              yield a
+              a, b = b, a + b
+      ```
+   Details: Ideal for large datasets or infinite sequences.
+
+8. What is the difference between `list comprehension` and `generator expression`?
+   Answer: List comprehension `[x for x in range(10)]` creates a list in memory. Generator expression 
+   `(x for x in range(10))` yields values lazily, saving memory.
+   Details: Use generators for iteration over large ranges to avoid memory overhead.
+
+9. Explain Python’s `property` decorator and its use cases.
+   Answer: `@property` turns methods into getter-like attributes, with `@setter` for assignment.
+      ```python
+      class Circle:
+          def __init__(self, radius):
+              self._radius = radius
+          @property
+          def radius(self):
+              return self._radius
+          @radius.setter
+          def radius(self, value):
+              if value >= 0: self._radius = value
+      ```
+   Details: Encapsulates data access, common in Django models.
+
+10. What are metaclasses in Python, and when would you use them?
+    Answer: Metaclasses define how classes are created (type is the default metaclass). 
+    Example:
+       ```python
+       class Meta(type):
+           def __new__(cls, name, bases, attrs):
+               attrs['created'] = time.time()
+               return super().__new__(cls, name, bases, attrs)
+       class MyClass(metaclass=Meta):
+           pass
+       ```
+    Details: Used for frameworks (e.g., Django ORM) to customize class behavior.
+
+--------------------------------------------------------------------------------
+Django-Specific Python Questions
+--------------------------------------------------------------------------------
+
+11. How does Django use Python’s dynamic nature in its ORM?
+    Answer: Django’s ORM uses Python’s dynamic attributes to map model fields to database columns, 
+    enabling runtime query construction via QuerySets.
+    Details: `Model.objects.filter(name='John')` translates to SQL dynamically.
+
+12. What are Django signals, and how are they implemented in Python?
+    Answer: Signals are a pub/sub system for event handling. Example:
+       ```python
+       from django.db.models.signals import post_save
+       from django.dispatch import receiver
+       @receiver(post_save, sender=User)
+       def user_saved(sender, instance, created, **kwargs):
+           if created: print(f"New user: {instance}")
+       ```
+    Details: Decouples actions (e.g., user creation triggers profile setup).
+
+13. How does Django’s middleware system leverage Python’s function wrapping?
+    Answer: Middleware are callable classes that wrap request/response processing.
+       ```python
+       class CustomMiddleware:
+           def __init__(self, get_response):
+               self.get_response = get_response
+           def __call__(self, request):
+               print("Before view")
+               response = self.get_response(request)
+               print("After view")
+               return response
+       ```
+    Details: Applied via `MIDDLEWARE` settings, enhances request lifecycle.
+
+14. How do you implement custom template tags in Django using Python?
+    Answer: Define in `templatetags`:
+       ```python
+       from django import template
+       register = template.Library()
+       @register.filter
+       def add_prefix(value, prefix):
+           return f"{prefix}{value}"
+       ```
+       Usage: `{{ "hello"|add_prefix:"prefix_" }}` -> "prefix_hello"
+    Details: Extends Django’s templating capabilities.
+
+15. What is the purpose of Django’s `manage.py` file, and how is it structured in Python?
+    Answer: `manage.py` is a command-line utility for Django projects, using `django.core.management`.
+       ```python
+       if __name__ == "__main__":
+           os.environ.setdefault("DJANGO_SETTINGS_MODULE", "project.settings")
+           from django.core.management import execute_from_command_line
+           execute_from_command_line(sys.argv)
+       ```
+    Details: Executes commands like `runserver`, `migrate`.
+
+--------------------------------------------------------------------------------
+Performance and Optimization
+--------------------------------------------------------------------------------
+
+16. How would you profile a Python application to identify bottlenecks?
+    Answer: Use `cProfile` or `line_profiler`:
+       ```python
+       import cProfile
+       def slow_function():
+           time.sleep(1)
+       cProfile.run('slow_function()')
+       ```
+    Details: Identifies slow code sections; integrate with Django Debug Toolbar for web apps.
+
+17. What are Python’s `asyncio` and `async/await`, and how do they improve performance?
+    Answer: `asyncio` enables asynchronous programming for I/O-bound tasks.
+       ```python
+       async def fetch_data():
+           await asyncio.sleep(1)
+           return "data"
+       async def main():
+           result = await fetch_data()
+       asyncio.run(main())
+       ```
+    Details: Non-blocking, boosts concurrency in Django with `asgiref`.
+
+18. How do you optimize Python code for memory usage?
+    Answer:
+       - Use generators instead of lists
+       - Employ `__slots__` in classes
+       - Avoid unnecessary copies with `copy`
+       - Use built-in data structures (e.g., sets for lookups)
+    Details: Reduces footprint in large-scale Django apps.
+
+19. What is memoization in Python, and how would you implement it?
+    Answer: Memoization caches function results for repeated inputs.
+       ```python
+       from functools import lru_cache
+       @lru_cache(maxsize=128)
+       def fibonacci(n):
+           if n < 2: return n
+           return fibonacci(n-1) + fibonacci(n-2)
+       ```
+    Details: Speeds up recursive calls in Django utilities.
+
+20. How do you handle large datasets in Python efficiently?
+    Answer:
+       - Generators for streaming
+       - `pandas` chunks for CSV/data processing
+       - `mmap` for memory-mapped files
+       - Database cursors for Django queries
+    Details: Prevents memory overload in data-intensive tasks.
+
+--------------------------------------------------------------------------------
+Error Handling and Debugging
+--------------------------------------------------------------------------------
+
+21. How do you implement custom exceptions in Python?
+    Answer:
+       ```python
+       class CustomError(Exception):
+           def __init__(self, message, code):
+               super().__init__(message)
+               self.code = code
+       raise CustomError("Invalid input", 400)
+       ```
+    Details: Enhances error handling in Django APIs.
+
+22. What is the difference between `try/except` and `try/finally`?
+    Answer: `try/except` handles exceptions, `try/finally` ensures cleanup regardless of exceptions.
+       ```python
+       try:
+           file = open("data.txt")
+       except FileNotFoundError:
+           print("File not found")
+       finally:
+           file.close()
+       ```
+    Details: `finally` runs even if no exception occurs.
+
+23. How does Python’s `logging` module compare to `print()` for debugging?
+    Answer: `logging` offers levels (DEBUG, INFO), formatting, and handlers vs. `print()`’s simplicity.
+       ```python
+       import logging
+       logging.basicConfig(level=logging.DEBUG)
+       logging.debug("Debug message")
+       ```
+    Details: Preferred in production Django apps for traceability.
+
+24. What is the purpose of Python’s `pdb` debugger?
+    Answer: `pdb` provides interactive debugging with breakpoints.
+       ```python
+       import pdb
+       def func():
+           x = 1
+           pdb.set_trace()  # Breakpoint
+           y = x + 2
+       ```
+    Details: Use `n` (next), `s` (step), `c` (continue) for control.
+
+25. How do you handle race conditions in Python multi-threading?
+    Answer: Use `threading.Lock`:
+       ```python
+       from threading import Lock
+       lock = Lock()
+       def safe_update():
+           with lock:
+               global counter
+               counter += 1
+       ```
+    Details: Ensures thread safety; prefer `multiprocessing` for CPU tasks.
+
+--------------------------------------------------------------------------------
+Object-Oriented Programming (OOP) in Python
+--------------------------------------------------------------------------------
+
+26. What is the difference between classmethod and staticmethod in Python?
+    Answer:
+       - `@classmethod`: Takes `cls` as first arg, can access class state
+       - `@staticmethod`: No implicit args, acts like a regular function
+       ```python
+       class MyClass:
+           @classmethod
+           def from_cls(cls, x): return cls(x)
+           @staticmethod
+           def util(x): return x * 2
+       ```
+    Details: `@classmethod` for factory methods, `@staticmethod` for utilities.
+
+27. How does Python implement inheritance, and what is method resolution order (MRO)?
+    Answer: Inheritance allows subclasses to inherit parent attributes/methods. MRO determines method lookup order.
+       ```python
+       class A: pass
+       class B(A): pass
+       print(B.__mro__)  # (<class 'B'>, <class 'A'>, <class 'object'>)
+       ```
+    Details: Uses C3 linearization for multiple inheritance.
+
+28. What are abstract base classes (ABCs) in Python?
+    Answer: ABCs enforce method implementation in subclasses via `abc` module.
+       ```python
+       from abc import ABC, abstractmethod
+       class Shape(ABC):
+           @abstractmethod
+           def area(self): pass
+       class Circle(Shape):
+           def area(self): return 3.14 * self.radius ** 2
+       ```
+    Details: Ensures interface compliance in Django plugins.
+
+29. How does Python handle multiple inheritance?
+    Answer: Supports multiple inheritance; resolves conflicts via MRO.
+       ```python
+       class A: def method(self): return "A"
+       class B: def method(self): return "B"
+       class C(A, B): pass
+       print(C().method())  # "A" (A before B in MRO)
+       ```
+    Details: Check MRO with `__mro__` or `mro()`.
+
+30. What is duck typing in Python?
+    Answer: Duck typing focuses on object behavior, not type (“If it walks like a duck…”).
+       ```python
+       def call_quack(obj):
+           return obj.quack()
+       class Duck:
+           def quack(self): return "Quack"
+       class Person:
+           def quack(self): return "Mimic Quack"
+       ```
+    Details: Promotes flexibility in Python/Django.
+
+--------------------------------------------------------------------------------
+Functional Programming in Python
+--------------------------------------------------------------------------------
+
+31. What are lambda functions, and how are they used in Python?
+    Answer: Lambda functions are anonymous, single-expression functions.
+       ```python
+       square = lambda x: x * x
+       print(square(5))  # 25
+       ```
+    Details: Used in `map()`, `filter()`, or Django querysets.
+
+32. How do `map()`, `filter()`, and `reduce()` work in Python?
+    Answer:
+       - `map()`: Applies function to each item
+       - `filter()`: Selects items based on condition
+       - `reduce()`: Combines items via function
+       ```python
+       from functools import reduce
+       nums = [1, 2, 3]
+       print(list(map(lambda x: x*2, nums)))  # [2, 4, 6]
+       print(list(filter(lambda x: x > 1, nums)))  # [2, 3]
+       print(reduce(lambda x, y: x + y, nums))  # 6
+       ```
+    Details: Functional tools for data processing.
+
+33. What is a closure in Python, and how does it work?
+    Answer: A closure is a nested function retaining access to its outer scope.
+       ```python
+       def outer(x):
+           def inner(y):
+               return x + y
+           return inner
+       add_five = outer(5)
+       print(add_five(3))  # 8
+       ```
+    Details: Useful for stateful functions or Django callbacks.
+
+34. How does Python handle immutability in functional programming?
+    Answer: Immutable types (e.g., tuple, str) can’t be changed, supporting functional purity.
+       ```python
+       x = (1, 2)
+       # x[0] = 3  # Error: immutable
+       ```
+    Details: Encourages avoiding side effects.
+
+35. What are Python’s `functools` and `itertools` modules?
+    Answer:
+       - `functools`: Tools like `lru_cache`, `partial`
+       - `itertools`: Efficient iteration (e.g., `chain`, `combinations`)
+       ```python
+       from functools import partial
+       from itertools import chain
+       add = partial(lambda x, y: x + y, 5)
+       print(add(3))  # 8
+       print(list(chain([1, 2], [3])))  # [1, 2, 3]
+       ```
+    Details: Enhances functional programming in Django utilities.
+
+--------------------------------------------------------------------------------
+Testing and Development
+--------------------------------------------------------------------------------
+
+36. How do you write unit tests in Python using `unittest`?
+    Answer:
+       ```python
+       import unittest
+       class TestMath(unittest.TestCase):
+           def test_add(self):
+               self.assertEqual(1 + 1, 2)
+           def test_sub(self):
+               self.assertEqual(3 - 1, 2)
+       if __name__ == '__main__':
+           unittest.main()
+       ```
+    Details: Used in Django with `TestCase` for DB tests.
+
+37. What is the difference between `unittest` and `pytest`?
+    Answer:
+       - `unittest`: Built-in, requires subclassing, explicit assertions
+       - `pytest`: Third-party, simpler syntax, auto-discovers tests
+       ```python
+       # pytest
+       def test_add():
+           assert 1 + 1 == 2
+       ```
+    Details: `pytest` preferred for flexibility in Django projects.
+
+38. How do you mock objects in Python tests?
+    Answer: Use `unittest.mock`:
+       ```python
+       from unittest.mock import patch
+       def test_function():
+           with patch('module.function', return_value=42):
+               assert module.function() == 42
+       ```
+    Details: Isolates dependencies in Django tests.
+
+39. What is Python’s `doctest` module, and when would you use it?
+    Answer: `doctest` tests code in docstrings.
+       ```python
+       def add(a, b):
+           """
+           >>> add(2, 3)
+           5
+           """
+           return a + b
+       import doctest
+       doctest.testmod()
+       ```
+    Details: Good for simple examples, less common in Django.
+
+40. How do you ensure code quality in a Python project?
+    Answer:
+       - Linters: `flake8`, `pylint`
+       - Formatters: `black`, `isort`
+       - Type checking: `mypy`
+       - Tests: Unit/integration
+       - CI/CD: Automated checks
+    Details: Standard in Django projects for maintainability.
+
+--------------------------------------------------------------------------------
+Practical Application and Real-World Scenarios
+--------------------------------------------------------------------------------
+
+41. How would you implement a singleton pattern in Python?
+    Answer:
+       ```python
+       class Singleton:
+           _instance = None
+           def __new__(cls):
+               if cls._instance is None:
+                   cls._instance = super().__new__(cls)
+               return cls._instance
+       ```
+    Details: Ensures single instance, useful for configs in Django.
+
+42. How do you process a large CSV file in Python efficiently?
+    Answer:
+       ```python
+       import pandas as pd
+       for chunk in pd.read_csv('large.csv', chunksize=10000):
+           process_chunk(chunk)
+       ```
+    Details: Uses chunks to manage memory in Django data imports.
+
+43. What is Python’s `pickle` module, and when should you avoid it?
+    Answer: `pickle` serializes Python objects.
+       ```python
+       import pickle
+       data = {'a': 1}
+       with open('data.pkl', 'wb') as f:
+           pickle.dump(data, f)
+       ```
+    Details: Avoid with untrusted data (security risk), prefer JSON in Django.
+
+44. How would you implement a simple caching system in Python?
+    Answer:
+       ```python
+       class Cache:
+           def __init__(self):
+               self.storage = {}
+           def set(self, key, value, ttl=None):
+               self.storage[key] = (value, time.time() + (ttl or 3600))
+           def get(self, key):
+               val, exp = self.storage.get(key, (None, 0))
+               if time.time() > exp: return None
+               return val
+       ```
+    Details: Use Django’s cache framework in production.
+
+45. How do you handle configuration in a Python/Django application?
+    Answer:
+       - `settings.py` for Django
+       - `python-decouple` for env vars
+       ```python
+       from decouple import config
+       API_KEY = config('API_KEY', default='default_key')
+       ```
+    Details: Secures sensitive data via environment.
+
+--------------------------------------------------------------------------------
+Python Ecosystem and Tools
+--------------------------------------------------------------------------------
+
+46. What is `virtualenv`, and why is it important?
+    Answer: `virtualenv` creates isolated Python environments.
+       ```bash
+       virtualenv venv
+       source venv/bin/activate
+       ```
+    Details: Prevents dependency conflicts in Django projects.
+
+47. How does `pip` work, and what is `requirements.txt`?
+    Answer: `pip` installs Python packages. `requirements.txt` lists dependencies.
+       ```bash
+       pip install -r requirements.txt
+       pip freeze > requirements.txt
+       ```
+    Details: Standard for Django project reproducibility.
+
+48. What is Python’s `asyncio` library used for in Django?
+    Answer: Enables async views/tasks with `asgiref.sync`.
+       ```python
+       from django.http import HttpResponse
+       async def async_view(request):
+           await asyncio.sleep(1)
+           return HttpResponse("Done")
+       ```
+    Details: Improves I/O-bound performance.
+
+49. How do you use Python’s `collections` module in real-world applications?
+    Answer: Provides specialized data structures:
+       - `Counter`: Counts occurrences
+       - `defaultdict`: Default values
+       - `namedtuple`: Lightweight classes
+       ```python
+       from collections import Counter
+       print(Counter(['a', 'a', 'b']))  # Counter({'a': 2, 'b': 1})
+       ```
+    Details: Optimizes data handling in Django.
+
+50. What are Python type hints, and how do you use them?
+    Answer: Type hints improve code readability and tooling support.
+       ```python
+       def add(a: int, b: int) -> int:
+           return a + b
+       ```
+    Details: Use `mypy` for static checking in Django projects.
+
+================================================================================
+Preparation Notes
+================================================================================
+- Focus on practical Python usage in Django backend development.
+- Be ready to explain code examples and their optimizations.
+- Highlight experience with performance, testing, and real-world scenarios.
+- Tailor answers to enterprise needs (e.g., scalability, maintainability).
